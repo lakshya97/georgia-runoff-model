@@ -73,13 +73,6 @@ for county_name in counties:
     precinct_lst_2 = sorted(county_totals_and_rates["County Precinct"])
     # County Rate
     county_df = county_df.merge(county_totals_and_rates, left_on=["Precinct"], right_on=["County Precinct"], how="inner")
-    
-    difference = compute_list_difference(precinct_lst_1, precinct_lst_2)
-    if len(difference) > 0 and not (len(difference) == 1 and difference[0] == '88888'):
-        print("County, ID:", county_name, county_id)
-        # print(precinct_lst_1)
-        # print(precinct_lst_2)
-        print(difference)
 
     # VBM
     vbm_total = county_df[county_df["Ballot Style"] == "MAILED"]
@@ -123,9 +116,21 @@ gop_votes = results_df["GOP Total Votes"].sum()
 state_df["tuple_set"] = "(" + state_df["County"] + "," + state_df["Precinct"] + ")"
 results_df["tuple_set"] = "(" + results_df["County"] + "," + results_df["Precinct"] + ")"
 output_counties = sorted(results_df["County"].unique())
+
 print("DEM VOTES", dem_votes)
 print("GOP VOTES", gop_votes)
-print("DEM SHARE", dem_votes/(dem_votes + gop_votes))
-state_tup = sorted(state_df["tuple_set"])
-results_tup = sorted(results_df["tuple_set"])
+
+print("Dem VBM Share: ", results_df["dem_vbm_votes"].sum()/(results_df["dem_vbm_votes"].sum() + results_df["gop_vbm_votes"].sum()))
+print("GOP VBM Share: ", results_df["gop_vbm_votes"].sum()/(results_df["dem_vbm_votes"].sum() + results_df["gop_vbm_votes"].sum()))
+print("Dem ADV Share: ", results_df["dem_adv_votes"].sum()/(results_df["dem_adv_votes"].sum() + results_df["gop_adv_votes"].sum()))
+print("GOP ADV Share: ", results_df["gop_adv_votes"].sum()/(results_df["dem_adv_votes"].sum() + results_df["gop_adv_votes"].sum()))
+
+total_early_votes = results_df["dem_vbm_votes"].sum() + results_df["gop_vbm_votes"].sum() + results_df["dem_adv_votes"].sum() + results_df["gop_adv_votes"].sum()
+
+print("Dem Total Early share:", (results_df["dem_vbm_votes"].sum() + results_df["dem_adv_votes"].sum())/total_early_votes)
+print("GOP Total Early share:", (results_df["gop_vbm_votes"].sum() + results_df["gop_adv_votes"].sum())/total_early_votes)
+print("Dem Election Day Share: ", results_df["dem_eday_votes"].sum()/(results_df["dem_eday_votes"].sum() + results_df["gop_eday_votes"].sum()))
+print("GOP Election Day Share: ", results_df["gop_eday_votes"].sum()/(results_df["dem_eday_votes"].sum() + results_df["gop_eday_votes"].sum()))
+print("DEM Share", dem_votes/(dem_votes + gop_votes))
+print("GOP Share", gop_votes/(dem_votes + gop_votes))
 
