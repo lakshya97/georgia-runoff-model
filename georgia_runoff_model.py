@@ -69,8 +69,6 @@ for county_name in counties:
     county_df["dem_eday_share"] = county_df["dem_eday_average"]/county_df["average_total_eday_votes"]
     county_df["election_day_vote_rate"] = county_df["average_total_eday_votes"]/(county_df["average_total_adv_votes"] + county_df["average_total_vbm_votes"])
 
-    precinct_lst_1 = sorted(county_df["Precinct"])
-    precinct_lst_2 = sorted(county_totals_and_rates["County Precinct"])
     # County Rate
     county_df = county_df.merge(county_totals_and_rates, left_on=["Precinct"], right_on=["County Precinct"], how="inner")
 
