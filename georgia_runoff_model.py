@@ -96,7 +96,7 @@ for county_name in counties:
     adv_total = county_df[county_df["Ballot Style"] == "IN PERSON"]
     adv_df = adv_total[["County", "Precinct", "dem_adv_share"]]
     adv_df["total_adv_votes"] = adv_total["isValid"]
-    adv_df["dem_adv_votes"] = adv_df["dem_adv_share"] * adv_df["total_adv_votes"] * 0.98
+    adv_df["dem_adv_votes"] = adv_df["dem_adv_share"] * adv_df["total_adv_votes"]
     adv_df["gop_adv_votes"] = adv_df["total_adv_votes"] - adv_df["dem_adv_votes"]
 
     # Election Day
@@ -107,7 +107,7 @@ for county_name in counties:
     ev_df = ev_total[["County", "Precinct", "dem_eday_share"]]
 
     ev_df["proj_eday_votes"] = ev_total["election_day_vote_rate"] * ev_total["total_votes"] * eday_modifier
-    ev_df["dem_eday_votes"] = ev_df["dem_eday_share"] * ev_df["proj_eday_votes"] * 0.95
+    ev_df["dem_eday_votes"] = ev_df["dem_eday_share"] * ev_df["proj_eday_votes"]
     ev_df["gop_eday_votes"] = ev_df["proj_eday_votes"] - ev_df["dem_eday_votes"]
 
     county_result_df = vbm_df.merge(adv_df, left_on=["County", "Precinct"], right_on=["County", "Precinct"])
