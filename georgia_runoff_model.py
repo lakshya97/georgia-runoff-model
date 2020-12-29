@@ -53,7 +53,6 @@ for county_name in counties:
     county_votes_cast_split = single_county_df.groupby(["County Precinct", "Ballot Style"], as_index=False).sum("isValid")
     county_votes_cast_totals = single_county_df[single_county_df["isValid"] > 0].groupby(["County Precinct"]).sum().rename(columns={'isValid':'total_votes'})
 
-    county_totals_and_rates = county_votes_cast_split
     county_totals_and_rates = county_votes_cast_split.merge(county_accept_totals, left_on=["County Precinct", "Ballot Style"], right_on=["County Precinct", "Ballot Style"], how="inner")
 
     # I don't really use this, but it collects info on the VBM acceptance rate. Not really needed right now, though.
