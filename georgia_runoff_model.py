@@ -23,23 +23,23 @@ def compute_list_difference(a, b):
 for county_name in counties:
     county_id += 1
     filename = 'Absentee Files/35211/' + '{:0>3}'.format(county_id) + '.csv'
-    county_df = pd.read_csv(filename, sep=",", header=0)
-    county_df = county_df[["Application Status", "Ballot Status", "Status Reason", "Ballot Return Date", "Ballot Style", "County Precinct"]]
+    single_county_df = pd.read_csv(filename, sep=",", header=0)
+    single_county_df = single_county_df[["Application Status", "Ballot Status", "Status Reason", "Ballot Return Date", "Ballot Style", "County Precinct"]]
     # Special case for Newton County
     if county_name == "Newton":
         for newton_id in range(1, 10):
-            county_df = county_df.replace(to_replace={'County Precinct': str(newton_id)}, value={'County Precinct': '{:0>2}'.format(newton_id)})
+            single_county_df = single_county_df.replace(to_replace={'County Precinct': str(newton_id)}, value={'County Precinct': '{:0>2}'.format(newton_id)})
 
-    county_df["County Precinct"] = county_df["County Precinct"].astype(str)
+    single_county_df["County Precinct"] = single_county_df["County Precinct"].astype(str)
     ## create a new column that says 1 if the ballot is validly cast, 0 if not
-    county_df["isValid"] = county_df["Ballot Status"] == "A"
-    county_df["Ballot Style"] = county_df["Ballot Style"].replace("ELECTRONIC", "MAILED")
+    single_county_df["isValid"] = single_county_df["Ballot Status"] == "A"
+    single_county_df["Ballot Style"] = single_county_df["Ballot Style"].replace("ELECTRONIC", "MAILED")
 
-    county_accept_totals = county_df.groupby(["County Precinct", "Ballot Style"]).size().reset_index(name='num_applications')
+    county_accept_totals = single_county_df.groupby(["County Precinct", "Ballot Style"]).size().reset_index(name='num_applications')
 
     ## create a count that sums up the valid votes cast and splits by style
-    county_votes_cast_split = county_df.groupby(["County Precinct", "Ballot Style"], as_index=False).sum("isValid")
-    county_votes_cast_totals = county_df[county_df["isValid"] == 1].groupby(["County Precinct"]).size().reset_index(name='total_votes')
+    county_votes_cast_split = single_county_df.groupby(["County Precinct", "Ballot Style"], as_index=False).sum("isValid")
+    county_votes_cast_totals = single_county_df[single_county_df["isValid"] == 1].groupby(["County Precinct"]).size().reset_index(name='total_votes')
 
     county_totals_and_rates = county_votes_cast_split.merge(county_accept_totals, left_on=["County Precinct", "Ballot Style"], right_on=["County Precinct", "Ballot Style"], how="inner")
     county_totals_and_rates["acceptance rate"] = county_totals_and_rates["isValid"]/county_totals_and_rates["num_applications"]
