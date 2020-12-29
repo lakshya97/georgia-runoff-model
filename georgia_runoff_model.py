@@ -91,7 +91,7 @@ for county_name in counties:
     # Election Day
     ev_total = county_df.merge(county_votes_cast_totals, left_on="Precinct", right_on=["County Precinct"], how="inner")
 
-    # this is just to avoid dumb duplicates, nothing else.
+    # this is just to avoid dumb duplicates, nothing else. Otherwise, you have two rows with the same total vote data per precinct: Mailed and In Person. We don't need that.
     ev_total = ev_total[ev_total["Ballot Style"] == "IN PERSON"]
     ev_df = ev_total[["County", "Precinct", "dem_eday_share"]]
 
