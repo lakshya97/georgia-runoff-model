@@ -124,6 +124,8 @@ for county_name in counties:
 
 ## HERE IS WHERE WE DO ALL THE REPORTING OF THE DATA
 
+## REPORT THE MARGINS IN THE TERMINAL
+
 dem_votes = results_df["Dem Total Votes"].sum()
 gop_votes = results_df["GOP Total Votes"].sum()
 
@@ -189,3 +191,27 @@ margin = round((dem_total_share - gop_total_share) * 100, 2)
 winner = "DEM" if margin > 0 else "GOP"
 print("MARGIN: " + winner + " +" + str(abs(margin)))
 print("-------------------\n")
+
+
+## OUTPUT THE RESULTS TO A CSV
+
+agg_dict = {'dem_vbm_votes': 'sum', 'gop_vbm_votes': 'sum', 'dem_adv_votes': 'sum', 'gop_adv_votes': 'sum', 'dem_eday_votes': 'sum', 'gop_eday_votes': 'sum'}
+results_by_county = results_df.groupby(["County"]).agg(agg_dict)
+results_by_county["Democratic Votes"] = results_by_county['dem_vbm_votes'] + results_by_county['dem_adv_votes'] + results_by_county['dem_eday_votes']
+results_by_county["Republican Votes"] = results_by_county['gop_vbm_votes'] + results_by_county['gop_adv_votes'] + results_by_county['gop_eday_votes']
+results_by_county["Democratic Share"] = 100 * results_by_county["Democratic Votes"]/(results_by_county["Democratic Votes"] + results_by_county["Republican Votes"])
+results_by_county["Republican Share"] = 100 * results_by_county["Republican Votes"]/(results_by_county["Democratic Votes"] + results_by_county["Republican Votes"])
+results_by_county["Democratic Share"] = results_by_county["Democratic Share"].round(2)
+results_by_county["Republican Share"] = results_by_county["Republican Share"].round(2)
+
+results_by_county["dem_vbm_votes"] = results_by_county["dem_vbm_votes"].round(0)
+results_by_county["dem_adv_votes"] = results_by_county["dem_adv_votes"].round(0)
+results_by_county["dem_eday_votes"] = results_by_county["dem_eday_votes"].round(0)
+results_by_county["Democratic Votes"] = results_by_county["Democratic Votes"].round(0)
+
+results_by_county["gop_vbm_votes"] = results_by_county["gop_vbm_votes"].round(0)
+results_by_county["gop_adv_votes"] = results_by_county["gop_adv_votes"].round(0)
+results_by_county["gop_eday_votes"] = results_by_county["gop_eday_votes"].round(0)
+results_by_county["Republican Votes"] = results_by_county["Republican Votes"].round(0)
+
+results_by_county.to_csv("county_projections.csv")
