@@ -5,7 +5,7 @@ import argparse
 from collections import Counter
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--mode', type=str, default="Biden", choices=["Biden", "Ossoff", "Average"])
+parser.add_argument('--mode', type=str, default="Biden", choices=["Biden", "Ossoff", "Average"], help="The November margins you wish to use: Biden/Ossoff/Average")
 args = parser.parse_args()
 
 warnings.simplefilter(action='ignore', category=Warning)
