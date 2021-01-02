@@ -1,9 +1,14 @@
 import pandas as pd
 import numpy as np
 import warnings
+import argparse
 from collections import Counter
 
-warnings. simplefilter(action='ignore', category=Warning)
+parser = argparse.ArgumentParser()
+parser.add_argument('--mode', type=str, default="Biden", choices=["Biden", "Ossoff", "Average"])
+args = parser.parse_args()
+
+warnings.simplefilter(action='ignore', category=Warning)
 
 state_df = pd.read_csv("general_election_data.csv")
 counties = sorted(state_df["County"].unique())
@@ -63,24 +68,41 @@ for county_name in counties:
     # Early Voting Rate
     county_df["total_sen_adv_votes"] = county_df["Ossoff Advanced Voting Votes"] + county_df["Perdue Advanced Voting Votes"]
     county_df["total_pres_adv_votes"] = county_df["Biden Advanced Voting Votes"] + county_df["Trump Advanced Voting Votes"]
-    county_df["average_total_adv_votes"] = (county_df["total_sen_adv_votes"] + county_df["total_pres_adv_votes"])/2
-    county_df["dem_adv_average"] = (county_df["Biden Advanced Voting Votes"] + county_df["Ossoff Advanced Voting Votes"])/2
-    county_df["dem_adv_share"] = county_df["dem_adv_average"]/county_df["average_total_adv_votes"]
+    if args.mode == "Average":
+        county_df["average_total_adv_votes"] = (county_df["total_sen_adv_votes"] + county_df["total_pres_adv_votes"])/2
+        county_df["dem_adv_average"] = (county_df["Biden Advanced Voting Votes"] + county_df["Ossoff Advanced Voting Votes"])/2
+        county_df["dem_adv_share"] = county_df["dem_adv_average"]/county_df["average_total_adv_votes"]
+    elif args.mode == "Biden":
+        county_df["dem_adv_share"] = county_df["Biden Advanced Voting Votes"]/county_df["total_pres_adv_votes"]
+    elif args.mode == "Ossoff":
+        county_df["dem_adv_share"] = county_df["Ossoff Advanced Voting Votes"]/county_df["total_sen_adv_votes"]
 
     # Vote by Mail Rate
     county_df["total_sen_vbm_votes"] = county_df["Ossoff Absentee by Mail Votes"] + county_df["Perdue Absentee by Mail Votes"]
     county_df["total_pres_vbm_votes"] = county_df["Biden Absentee by Mail Votes"] + county_df["Trump Absentee by Mail Votes"]
-    county_df["average_total_vbm_votes"] = (county_df["total_sen_vbm_votes"] + county_df["total_pres_vbm_votes"])/2
-    county_df["dem_vbm_average"] = (county_df["Biden Absentee by Mail Votes"] + county_df["Ossoff Absentee by Mail Votes"])/2
-    county_df["dem_vbm_share"] = county_df["dem_vbm_average"]/county_df["average_total_vbm_votes"]
+    if args.mode == "Average":
+        county_df["average_total_vbm_votes"] = (county_df["total_sen_vbm_votes"] + county_df["total_pres_vbm_votes"])/2
+        county_df["dem_vbm_average"] = (county_df["Biden Absentee by Mail Votes"] + county_df["Ossoff Absentee by Mail Votes"])/2
+        county_df["dem_vbm_share"] = county_df["dem_vbm_average"]/county_df["average_total_vbm_votes"]
+    elif args.mode == "Biden":
+        county_df["dem_vbm_share"] = county_df["Biden Absentee by Mail Votes"]/county_df["total_pres_vbm_votes"]
+    elif args.mode == "Ossoff":
+        county_df["dem_vbm_share"] = county_df["Ossoff Absentee by Mail Votes"]/county_df["total_sen_vbm_votes"]
 
     # Election Day Rate
     county_df["total_sen_eday_votes"] = county_df["Ossoff Election Day Votes"] + county_df["Perdue Election Day Votes"]
     county_df["total_pres_eday_votes"] = county_df["Biden Election Day Votes"] + county_df["Trump Election Day Votes"]
-    county_df["average_total_eday_votes"] = (county_df["total_sen_eday_votes"] + county_df["total_pres_eday_votes"])/2
-    county_df["dem_eday_average"] = (county_df["Biden Election Day Votes"] + county_df["Ossoff Election Day Votes"])/2
-    county_df["dem_eday_share"] = county_df["dem_eday_average"]/county_df["average_total_eday_votes"]
-    county_df["election_day_vote_rate"] = county_df["average_total_eday_votes"]/(county_df["average_total_adv_votes"] + county_df["average_total_vbm_votes"])
+    if args.mode == "Average":
+        county_df["average_total_eday_votes"] = (county_df["total_sen_eday_votes"] + county_df["total_pres_eday_votes"])/2
+        county_df["dem_eday_average"] = (county_df["Biden Election Day Votes"] + county_df["Ossoff Election Day Votes"])/2
+        county_df["dem_eday_share"] = county_df["dem_eday_average"]/county_df["average_total_eday_votes"]
+        county_df["election_day_vote_rate"] = county_df["average_total_eday_votes"]/(county_df["average_total_adv_votes"] + county_df["average_total_vbm_votes"])
+    elif args.mode == "Biden":
+        county_df["dem_eday_share"] = county_df["Biden Election Day Votes"]/county_df["total_pres_eday_votes"]
+        county_df["election_day_vote_rate"] = county_df["total_pres_eday_votes"]/(county_df["total_pres_vbm_votes"] + county_df["total_pres_adv_votes"])
+    elif args.mode == "Ossoff":
+        county_df["dem_eday_share"] = county_df["Ossoff Election Day Votes"]/county_df["total_sen_eday_votes"]
+        county_df["election_day_vote_rate"] = county_df["total_sen_eday_votes"] /(county_df["total_sen_vbm_votes"] + county_df["total_sen_adv_votes"])
 
     # County Rate
     county_df = county_df.merge(county_totals_and_rates, left_on=["Precinct"], right_on=["County Precinct"], how="inner")
