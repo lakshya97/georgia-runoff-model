@@ -6,11 +6,21 @@ from collections import Counter
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--mode', type=str, default="Biden", choices=["Biden", "Ossoff", "Average"], help="The November margins you wish to use: Biden/Ossoff/Average")
+parser.add_argument('--adjust', default=False, action='store_true', help="Adjust for Race/Party estimates?")
+
 args = parser.parse_args()
 
 warnings.simplefilter(action='ignore', category=Warning)
 
 state_df = pd.read_csv("general_election_data.csv")
+if args.adjust:
+    precinct_adj_df = pd.read_csv("precinct_adjustment.csv")
+    precinct_adj_df["County"] = precinct_adj_df["County"].str.title()
+    lst1 = sorted(state_df["County"].unique())
+    state_df = state_df.merge(precinct_adj_df, left_on=["County", "Precinct"], right_on=["County", "Precinct"], how="inner")
+    lst2 = sorted(state_df["County"].unique())
+    print([item for item in lst1 if item not in lst2])
+
 counties = sorted(state_df["County"].unique())
 county_id = 0
 results_df = None
@@ -76,6 +86,10 @@ for county_name in counties:
         county_df["dem_adv_share"] = county_df["Biden Advanced Voting Votes"]/county_df["total_pres_adv_votes"]
     elif args.mode == "Ossoff":
         county_df["dem_adv_share"] = county_df["Ossoff Advanced Voting Votes"]/county_df["total_sen_adv_votes"]
+    
+    # add adjustment
+    if args.adjust:
+        county_df["dem_adv_share"] += county_df["Index"]/100
 
     # Vote by Mail Rate
     county_df["total_sen_vbm_votes"] = county_df["Ossoff Absentee by Mail Votes"] + county_df["Perdue Absentee by Mail Votes"]
