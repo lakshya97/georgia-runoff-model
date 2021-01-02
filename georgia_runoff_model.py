@@ -16,10 +16,7 @@ state_df = pd.read_csv("general_election_data.csv")
 if args.adjust:
     precinct_adj_df = pd.read_csv("precinct_adjustment.csv")
     precinct_adj_df["County"] = precinct_adj_df["County"].str.title()
-    lst1 = sorted(state_df["County"].unique())
     state_df = state_df.merge(precinct_adj_df, left_on=["County", "Precinct"], right_on=["County", "Precinct"], how="inner")
-    lst2 = sorted(state_df["County"].unique())
-    print([item for item in lst1 if item not in lst2])
 
 counties = sorted(state_df["County"].unique())
 county_id = 0
