@@ -87,6 +87,7 @@ for county_name in counties:
     # add adjustment
     if args.adjust:
         county_df["dem_adv_share"] += county_df["Index"]/100
+        county_df["dem_adv_share"] = county_df["dem_adv_share"].clip(0, 1)
 
     # Vote by Mail Rate
     county_df["total_sen_vbm_votes"] = county_df["Ossoff Absentee by Mail Votes"] + county_df["Perdue Absentee by Mail Votes"]
