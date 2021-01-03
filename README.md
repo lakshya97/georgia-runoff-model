@@ -5,7 +5,7 @@ To run this, create a subfolder called "Absentee Files", download the voter abse
 
 The precinct adjustment data was provided by Joe Gantt (twitter.com/joe__gantt)
 
-After speaking with Nate Cohn of the New York Times, we have added a flag
+After speaking with Nate Cohn of the New York Times, we have added an adjustment flag to account for race and party in the runoffs
 
 The precinct adjustment (triggered by the --adjust flag) goes as follows: 
 
