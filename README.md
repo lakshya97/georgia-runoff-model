@@ -18,5 +18,5 @@ For party adjustment, we take the ratio of early votes that cast votes in the Ju
 Compute the index difference in percentage from November in margin for calculations with both the race adjustment (race_index) and 
 the party adjustment (party_index)
 
-Now, adjust the November margins by doing November_vote_margin + race_index + 0.5 * party_index 
+Now, adjust the November Democratic margins by doing November_vote_margin + race_index + 0.5 * party_index 
 (this is done to because race and party are somewhat intertwined, but you must account for both, so we give party 1/2 the weight of race)
