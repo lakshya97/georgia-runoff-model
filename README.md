@@ -15,4 +15,8 @@ Now, to get the votes cast per party, use the following margins: 90-10 Black vot
 
 For party adjustment, we take the ratio of early votes that cast votes in the June primary and calculate the NPA skew per precinct (for example Dem_votes - dem_primary_voters = dem_npa_votes). Now, the data we see from Siena suggests Democrats are 1.16x more likely to be voting early in-person than the GOP, so apply that ratio to the Democratic primary voters per precinct and keep the NPA skew constant, and you will get the partisan breakdown of Janaury. Call this party_affiliation_votes. We weight this by half of the race votes to avoid for double-counting the affiliation spike that would naturally occur with partisan lean, but we can't ignore it entirely because Democratic white voters are also more likely to return their ballots.
 
-Now, party_votes = party_race_votes * 2/3 + party_affiliation_votes * 1/3.
+Compute the index difference in percentage from November in margin for calculations with both the race adjustment (race_index) and 
+the party adjustment (party_index)
+
+Now, adjust the November margins by doing November_vote_margin + race_index + 0.5 * party_index 
+(this is done to because race and party are somewhat intertwined, but you must account for both, so we give party 1/2 the weight of race)
