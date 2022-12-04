@@ -193,8 +193,6 @@ winner = "DEM" if margin > 0 else "GOP"
 print("MARGIN: " + winner + " +" + str(abs(margin)))
 print("-------------------\n")
 
-breakpoint()
-
 ## OUTPUT THE RESULTS TO A CSV
 
 agg_dict = {'dem_vbm_votes': 'sum', 'gop_vbm_votes': 'sum', 'dem_adv_votes': 'sum', 'gop_adv_votes': 'sum', 'dem_eday_votes': 'sum', 'gop_eday_votes': 'sum'}
