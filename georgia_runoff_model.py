@@ -3,162 +3,129 @@ import numpy as np
 import warnings
 import argparse
 from collections import Counter
-
+from sklearn.linear_model import LinearRegression
 parser = argparse.ArgumentParser()
-parser.add_argument('--mode', type=str, default="Biden", choices=["Biden", "Ossoff", "Average"], help="The November margins you wish to use: Biden/Ossoff/Average")
-parser.add_argument('--adjust', default=False, action='store_true', help="Adjust for Race/Party estimates?")
+# parser.add_argument('--adjust', default=False, action='store_true', help="Adjust for Race/Party estimates?")
 
 args = parser.parse_args()
 
 warnings.simplefilter(action='ignore', category=Warning)
 
-state_df = pd.read_csv("general_election_data.csv")
-if args.adjust:
-    precinct_adj_df = pd.read_csv("precinct_adjustment.csv")
-    precinct_adj_df["County"] = precinct_adj_df["County"].str.title()
-    state_df = state_df.merge(precinct_adj_df, left_on=["County", "Precinct"], right_on=["County", "Precinct"], how="inner")
+state_df = pd.read_csv("walker_warnock_precinct_november.csv", dtype={'County Precinct': object})
+state_df['County'] = state_df["County"].map(lambda x: x.title())
+# if args.adjust:
+#     precinct_adj_df = pd.read_csv("precinct_adjustment.csv")
+#     precinct_adj_df["County"] = precinct_adj_df["County"].str.title()
+#     state_df = state_df.merge(precinct_adj_df, left_on=["County", "Precinct"], right_on=["County", "Precinct"], how="inner")
 
-counties = sorted(state_df["County"].unique())
+counties = sorted(state_df['County'].unique())
 county_id = 0
 results_df = None
-vbm_modifier = 1.0
-adv_modifier = 1.0
 eday_modifier = 1.0
-
-def compute_list_difference(a, b):
-    count = Counter(a) # count items in a
-    count.subtract(b)  # subtract items that are in b
-    diff = []
-    for x in a:
-        if count[x] > 0:
-           count[x] -= 1
-           diff.append(x)
-    return diff
 
 for county_name in counties:
     county_id += 1
-    filename = 'Absentee Files/35211/' + '{:0>3}'.format(county_id) + '.csv'
+    filename = 'Absentee Files/36372/' + '{:0>3}'.format(county_id) + '.csv'
     single_county_df = pd.read_csv(filename, sep=",", header=0)
-    single_county_df = single_county_df[["Application Status", "Ballot Status", "Status Reason", "Ballot Return Date", "Ballot Style", "County Precinct"]]
-    # Special case for Newton County
-    if county_name == "Newton":
-        for newton_id in range(1, 10):
-            single_county_df = single_county_df.replace(to_replace={'County Precinct': str(newton_id)}, value={'County Precinct': '{:0>2}'.format(newton_id)})
-
-    single_county_df["County Precinct"] = single_county_df["County Precinct"].astype(str)
+    single_county_df = single_county_df[["Application Status", "County Precinct", "Ballot Status", "Status Reason", "Ballot Return Date", "Ballot Style"]]
+    single_county_df['County'] = county_name
 
     ## create a new column that says 1 if the ballot is validly cast, 0 if not
     single_county_df["isValid"] = 0
     single_county_df.loc[single_county_df["Ballot Status"] == "A", "isValid"] = 1
 
+    # Electronic is the same as Mailed
     single_county_df["Ballot Style"] = single_county_df["Ballot Style"].replace("ELECTRONIC", "MAILED")
 
-    # adjust for how many vbm ballots are projected (default: no adjustment)
-    single_county_df.loc[single_county_df["Ballot Style"] == "MAILED", "isValid"] *= vbm_modifier
-
-    # adjust for how many in-person ballots are projected (default: no adjustment)
-    single_county_df.loc[single_county_df["Ballot Style"] == "IN PERSON", "isValid"] *= adv_modifier
-
-    county_accept_totals = single_county_df.groupby(["County Precinct", "Ballot Style"]).size().reset_index(name='num_applications')
+    county_accept_totals = single_county_df.groupby(["County", "County Precinct", "Ballot Style"]).size().reset_index(name='num_applications')
 
     ## create a count that sums up the valid votes cast and splits by style
-    county_votes_cast_split = single_county_df.groupby(["County Precinct", "Ballot Style"], as_index=False).sum("isValid")
-    county_votes_cast_totals = single_county_df[single_county_df["isValid"] > 0].groupby(["County Precinct"]).sum().rename(columns={'isValid':'total_votes'})
-
-    county_totals_and_rates = county_votes_cast_split.merge(county_accept_totals, left_on=["County Precinct", "Ballot Style"], right_on=["County Precinct", "Ballot Style"], how="inner")
-
-    # I don't really use this, but it collects info on the VBM acceptance rate. Not really needed right now, though.
-    # county_totals_and_rates["acceptance rate"] = county_totals_and_rates["isValid"]/county_totals_and_rates["num_applications"]
+    county_votes_cast_split = single_county_df.groupby(["County", "County Precinct", "Ballot Style"], as_index=False).sum("isValid")
+    county_votes_cast_split['County Precinct'] = county_votes_cast_split['County Precinct'].map(lambda x: str(x))
 
     county_df = state_df[state_df["County"] == county_name]
+    splits_df = county_df.groupby(["County", "County Precinct"], as_index=False).sum()
 
-    # Early Voting Rate
-    county_df["total_sen_adv_votes"] = county_df["Ossoff Advanced Voting Votes"] + county_df["Perdue Advanced Voting Votes"]
-    county_df["total_pres_adv_votes"] = county_df["Biden Advanced Voting Votes"] + county_df["Trump Advanced Voting Votes"]
-    if args.mode == "Average":
-        county_df["average_total_adv_votes"] = (county_df["total_sen_adv_votes"] + county_df["total_pres_adv_votes"])/2
-        county_df["dem_adv_average"] = (county_df["Biden Advanced Voting Votes"] + county_df["Ossoff Advanced Voting Votes"])/2
-        county_df["dem_adv_share"] = county_df["dem_adv_average"]/county_df["average_total_adv_votes"]
-    elif args.mode == "Biden":
-        county_df["dem_adv_share"] = county_df["Biden Advanced Voting Votes"]/county_df["total_pres_adv_votes"]
-    elif args.mode == "Ossoff":
-        county_df["dem_adv_share"] = county_df["Ossoff Advanced Voting Votes"]/county_df["total_sen_adv_votes"]
-    
-    # add adjustment
-    if args.adjust:
-        county_df["dem_adv_share"] += county_df["Index"]/100
-        county_df["dem_adv_share"] = county_df["dem_adv_share"].clip(0, 1)
+    ###### Begin November Early Voting Data Computation #####
 
-    # Vote by Mail Rate
-    county_df["total_sen_vbm_votes"] = county_df["Ossoff Absentee by Mail Votes"] + county_df["Perdue Absentee by Mail Votes"]
-    county_df["total_pres_vbm_votes"] = county_df["Biden Absentee by Mail Votes"] + county_df["Trump Absentee by Mail Votes"]
-    if args.mode == "Average":
-        county_df["average_total_vbm_votes"] = (county_df["total_sen_vbm_votes"] + county_df["total_pres_vbm_votes"])/2
-        county_df["dem_vbm_average"] = (county_df["Biden Absentee by Mail Votes"] + county_df["Ossoff Absentee by Mail Votes"])/2
-        county_df["dem_vbm_share"] = county_df["dem_vbm_average"]/county_df["average_total_vbm_votes"]
-    elif args.mode == "Biden":
-        county_df["dem_vbm_share"] = county_df["Biden Absentee by Mail Votes"]/county_df["total_pres_vbm_votes"]
-    elif args.mode == "Ossoff":
-        county_df["dem_vbm_share"] = county_df["Ossoff Absentee by Mail Votes"]/county_df["total_sen_vbm_votes"]
+    # November Early In Person Voting
+    splits_df["nov_adv_votes"] = splits_df["Warnock Advance Voting Votes"] + splits_df["Walker Advance Voting Votes"]
+    splits_df["dem_adv_share"] = splits_df["Warnock Advance Voting Votes"] / splits_df["nov_adv_votes"]
+    splits_df["dem_nov_adv_margin"] = (splits_df["dem_adv_share"] * 2 - 1) * splits_df["nov_adv_votes"]
 
-    # Election Day Rate
-    county_df["total_sen_eday_votes"] = county_df["Ossoff Election Day Votes"] + county_df["Perdue Election Day Votes"]
-    county_df["total_pres_eday_votes"] = county_df["Biden Election Day Votes"] + county_df["Trump Election Day Votes"]
-    if args.mode == "Average":
-        county_df["average_total_eday_votes"] = (county_df["total_sen_eday_votes"] + county_df["total_pres_eday_votes"])/2
-        county_df["dem_eday_average"] = (county_df["Biden Election Day Votes"] + county_df["Ossoff Election Day Votes"])/2
-        county_df["dem_eday_share"] = county_df["dem_eday_average"]/county_df["average_total_eday_votes"]
-        county_df["election_day_vote_rate"] = county_df["average_total_eday_votes"]/(county_df["average_total_adv_votes"] + county_df["average_total_vbm_votes"])
-    elif args.mode == "Biden":
-        county_df["dem_eday_share"] = county_df["Biden Election Day Votes"]/county_df["total_pres_eday_votes"]
-        county_df["election_day_vote_rate"] = county_df["total_pres_eday_votes"]/(county_df["total_pres_vbm_votes"] + county_df["total_pres_adv_votes"])
-    elif args.mode == "Ossoff":
-        county_df["dem_eday_share"] = county_df["Ossoff Election Day Votes"]/county_df["total_sen_eday_votes"]
-        county_df["election_day_vote_rate"] = county_df["total_sen_eday_votes"] /(county_df["total_sen_vbm_votes"] + county_df["total_sen_adv_votes"])
+    # November Vote by Mail
+    splits_df["nov_vbm_votes"] = splits_df["Warnock Absentee by Mail Votes"] + splits_df["Walker Absentee by Mail Votes"]
+    splits_df["dem_vbm_share"] = splits_df["Warnock Absentee by Mail Votes"] / splits_df["nov_vbm_votes"]
+    splits_df["dem_nov_vbm_margin"] = (splits_df["dem_vbm_share"] * 2 - 1) * splits_df["nov_vbm_votes"]
+    splits_df["dem_nov_total_ev_margin"] = splits_df["dem_nov_vbm_margin"] + splits_df["dem_nov_adv_margin"]
 
-    # County Rate
-    county_df = county_df.merge(county_totals_and_rates, left_on=["Precinct"], right_on=["County Precinct"], how="inner")
+    # November Election Day
+    splits_df["nov_eday_votes"] = splits_df["Warnock Election Day Votes"] + splits_df["Walker Election Day Votes"]
+    splits_df["dem_nov_eday_share"] = splits_df["Warnock Election Day Votes"] / splits_df["nov_eday_votes"]
+    splits_df["election_day_vote_rate"] = splits_df["nov_eday_votes"] / (splits_df["nov_vbm_votes"] + splits_df["nov_adv_votes"])
+
+    # November Early Vote share
+    splits_df["total_dem_nov_early_share"] = (splits_df["Warnock Absentee by Mail Votes"] + splits_df["Warnock Advance Voting Votes"]) / (splits_df["nov_adv_votes"] + splits_df["nov_vbm_votes"])
+    splits_df["total_dem_nov_share"] = (splits_df["Warnock Absentee by Mail Votes"] + splits_df["Warnock Advance Voting Votes"] + splits_df["Warnock Election Day Votes"]) / (splits_df["nov_adv_votes"] + splits_df["nov_vbm_votes"] + splits_df["nov_eday_votes"])
+    splits_df["nov_early_votes"] = splits_df["nov_adv_votes"] + splits_df["nov_vbm_votes"]
+    splits_df["early_dem_nov_votes"] = (splits_df["nov_vbm_votes"] * splits_df["nov_early_votes"])
+    splits_df["nov_total_votes"] = splits_df["nov_early_votes"] + splits_df["nov_eday_votes"]
+    ###### End November Early Voting Data Computation #####
+
+    #### Current County Rate Calculations #####
+    county_df = county_votes_cast_split.merge(splits_df, how="inner")
 
     # VBM
     vbm_total = county_df[county_df["Ballot Style"] == "MAILED"]
-    vbm_df = vbm_total[["County", "Precinct", "dem_vbm_share"]]
+    vbm_df = vbm_total[["County", "County Precinct", "dem_vbm_share"]]
     vbm_df["total_vbm_votes"] = vbm_total["isValid"]
     vbm_df["dem_vbm_votes"] = vbm_df["dem_vbm_share"] * vbm_df["total_vbm_votes"]
     vbm_df["gop_vbm_votes"] = vbm_df["total_vbm_votes"] - vbm_df["dem_vbm_votes"]
     
-    # Advanced Voting 
+    # Early In Person Voting
     adv_total = county_df[county_df["Ballot Style"] == "IN PERSON"]
-    adv_df = adv_total[["County", "Precinct", "dem_adv_share"]]
+    adv_df = adv_total[["County", "County Precinct", "dem_adv_share"]]
     adv_df["total_adv_votes"] = adv_total["isValid"]
     adv_df["dem_adv_votes"] = adv_df["dem_adv_share"] * adv_df["total_adv_votes"]
     adv_df["gop_adv_votes"] = adv_df["total_adv_votes"] - adv_df["dem_adv_votes"]
 
-    # Election Day
-    ev_total = county_df.merge(county_votes_cast_totals, left_on="Precinct", right_on=["County Precinct"], how="inner")
+    total_per_precinct = county_votes_cast_split.groupby(["County", "County Precinct"], as_index=False).sum().rename(columns={'isValid': 'total_votes_cast'})
+    ev_total = county_df.merge(total_per_precinct, how="inner")
 
-    # this is just to avoid dumb duplicates, nothing else. Otherwise, you have two rows with the same total vote data per precinct: Mailed and In Person. We don't need that.
+    # DO NOT DELETE THIS it is a dumb hack to remove duplicates, now that we've computed all we needed to anyways for splits by voting method and have duplicate rows for total # of votes cast.
     ev_total = ev_total[ev_total["Ballot Style"] == "IN PERSON"]
-    ev_df = ev_total[["County", "Precinct", "dem_eday_share"]]
 
-    ev_df["proj_eday_votes"] = ev_total["election_day_vote_rate"] * ev_total["total_votes"] * eday_modifier
-    ev_df["dem_eday_votes"] = ev_df["dem_eday_share"] * ev_df["proj_eday_votes"]
+    # which columns do we keep for later calculations?
+    cols_to_keep = ["County", "County Precinct"]
+    cols_to_keep += ["dem_nov_eday_share", "election_day_vote_rate", "total_dem_nov_early_share", "total_dem_nov_share", "nov_early_votes", "nov_total_votes", "nov_vbm_votes", "nov_adv_votes"]
+    cols_to_keep += ["total_votes_cast"]
+
+    # for debugging/comparison; what was the november lead?
+    cols_to_keep += ["dem_nov_vbm_margin", "dem_nov_adv_margin", "dem_nov_total_ev_margin"]
+
+    ev_df = ev_total[cols_to_keep]
+    ev_df["turnout_rate"] = ev_df["total_votes_cast"] / (ev_df["nov_vbm_votes"] + ev_df["nov_adv_votes"])
+    ev_df["proj_eday_votes"] = ev_df["election_day_vote_rate"] * ev_df["total_votes_cast"] * eday_modifier
+    ev_df["dem_eday_votes"] = ev_df["dem_nov_eday_share"] * ev_df["proj_eday_votes"]
     ev_df["gop_eday_votes"] = ev_df["proj_eday_votes"] - ev_df["dem_eday_votes"]
 
-    county_result_df = vbm_df.merge(adv_df, left_on=["County", "Precinct"], right_on=["County", "Precinct"])
-    county_result_df = county_result_df.merge(ev_df, left_on=["County", "Precinct"], right_on=["County", "Precinct"])
+    county_result_df = vbm_df.merge(adv_df, left_on=["County", "County Precinct"], right_on=["County", "County Precinct"])
+    county_result_df = county_result_df.merge(ev_df, left_on=["County", "County Precinct"], right_on=["County", "County Precinct"])
 
     # Total Votes
     county_result_df["Dem Total Votes"] = county_result_df["dem_eday_votes"] + county_result_df["dem_adv_votes"] + county_result_df["dem_vbm_votes"]
     county_result_df["GOP Total Votes"] = county_result_df["gop_eday_votes"] + county_result_df["gop_adv_votes"] + county_result_df["gop_vbm_votes"]
+
     if results_df is None:
         results_df = county_result_df
     else:
         results_df = pd.concat([results_df, county_result_df], ignore_index=True)
-
+    print(f'{county_name} done!')
 
 ## HERE IS WHERE WE DO ALL THE REPORTING OF THE DATA
 
-## REPORT THE MARGINS IN THE TERMINAL
+## REPORT THE MARGINS IN THE TERMINALx
+early_share_statewide = results_df["nov_early_votes"] / results_df.sum()["nov_early_votes"]
 
 dem_votes = results_df["Dem Total Votes"].sum()
 gop_votes = results_df["GOP Total Votes"].sum()
@@ -226,6 +193,7 @@ winner = "DEM" if margin > 0 else "GOP"
 print("MARGIN: " + winner + " +" + str(abs(margin)))
 print("-------------------\n")
 
+breakpoint()
 
 ## OUTPUT THE RESULTS TO A CSV
 
@@ -248,4 +216,7 @@ results_by_county["gop_adv_votes"] = results_by_county["gop_adv_votes"].round(0)
 results_by_county["gop_eday_votes"] = results_by_county["gop_eday_votes"].round(0)
 results_by_county["Republican Votes"] = results_by_county["Republican Votes"].round(0)
 
+results_by_county["Total Votes"] = results_by_county["Republican Votes"] + results_by_county["Democratic Votes"]
+
 results_by_county.to_csv("county_projections.csv")
+
