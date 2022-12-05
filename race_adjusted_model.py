@@ -117,7 +117,7 @@ for county_name in counties:
 
     for race in adv_scale_constants.keys():
         if race == 'white':
-            adj = 1.08
+            adj = 1.10 # per targetsmart and L2 average, dems are about 1.1x more likely to return their ballots early than reps are. extend this to race.
         else:
             adj = 1.0
         vbm_df["dem_vbm_votes"] += adj * vbm_df[race + '_mail_turnout_share'] * vbm_df[race + '_mail_support_share'] * vbm_df["total_vbm_votes"]
@@ -134,7 +134,7 @@ for county_name in counties:
     adv_df["gop_unadjusted_adv_votes"] = adv_df["total_adv_votes"] - adv_df["dem_unadjusted_adv_votes"]
     for race in adv_scale_constants.keys():
         if race == 'white':
-            adj = 1.0
+            adj = 1.10 # per targetsmart and L2, dems are about 1.1x more likely to return their ballots early than reps are. extend this to race.
         else:
             adj = 1.0
         adv_df["dem_adv_votes"] += adj * adv_df[race + '_adv_turnout_share'] * adv_df[race + '_adv_support_share'] * adv_df["total_adv_votes"]
